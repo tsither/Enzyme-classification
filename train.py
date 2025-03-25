@@ -1,7 +1,7 @@
 import torch
 import matplotlib.pyplot as plt
-
-def train_and_evaluate(model, train_dataset, validation_dataset, optimizer, criterion, baseline=False, epochs=100):
+def train_and_evaluate(model, train_dataset, validation_dataset, optimizer, criterion, 
+                      baseline=False, epochs=100, patience=10, min=0.001):
     print('Training model...')
 
     #### Training #####
@@ -10,8 +10,18 @@ def train_and_evaluate(model, train_dataset, validation_dataset, optimizer, crit
     val_losses = []         #track validation set loss across all epochs
     val_accuracies = []     #track validation set accuracies across all epochs
     train_accuracies = []
+    
+    # Early stopping variables
+    best_val_loss = float('inf')
+    best_model_state = None
+    counter = 0
+    early_stop = False
 
     for e in range(epochs):
+        if early_stop:
+            print(f"Early stopping triggered at epoch {e}")
+            break
+            
         epoch_loss = 0
         for graph in train_dataset:
             optimizer.zero_grad()
@@ -38,7 +48,7 @@ def train_and_evaluate(model, train_dataset, validation_dataset, optimizer, crit
         val_epoch_loss = 0
 
         with torch.no_grad():  
-            for graph in validation_dataset:
+            for graph in validation_dataset:    #accuracy score on validation set
 
                 if baseline:
                     out = model(graph.x)  #not training in batches, dont need batch or edge index for MLP, not using graph structure
@@ -54,7 +64,7 @@ def train_and_evaluate(model, train_dataset, validation_dataset, optimizer, crit
 
                 correct_val += int((pred == graph.y.view(-1)))
 
-            for graph_train in train_dataset:
+            for graph_train in train_dataset:  #accuracy score on train set
 
                 if baseline:
                     out = model(graph_train.x)  #not training in batches, dont need batch or edge index for MLP, not using graph structure
@@ -78,9 +88,28 @@ def train_and_evaluate(model, train_dataset, validation_dataset, optimizer, crit
 
         if e % 10 == 0:     #track epochs for key updates during training
             print(f"epoch: {e} ; train_loss: {avg_train_loss:.4f}, val_loss:{avg_val_loss:.4f}; val_acc:{val_accuracy:.4f}")
+        
+        # Early stopping logic
+        if avg_val_loss < best_val_loss - min:
+            best_val_loss = avg_val_loss
+            best_model_state = model.state_dict().copy()
+            counter = 0
+        else:
+            counter += 1
+            if counter >= patience:
+                early_stop = True
+
+                if best_model_state is not None:
+                    model.load_state_dict(best_model_state)
+                print(f"Early stopping triggered. Best validation loss: {best_val_loss:.4f}")
 
         model.train()
-    return train_losses, val_losses, val_accuracies, train_accuracies
+        
+    # If training completes without early stopping, ensure we use the best model
+    if not early_stop and best_model_state is not None:
+        model.load_state_dict(best_model_state)
+        
+    return train_losses, val_losses, val_accuracies, train_accuracies, e
 
 
 def visualize(train_losses, val_losses):

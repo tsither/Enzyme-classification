@@ -6,7 +6,7 @@ from torch_geometric.datasets import TUDataset
 import torch
 from train import train_and_evaluate, visualize
 from models import baselineMLP, GCN, GAT
-from helper import process_dataset
+from data_processing import process_dataset
 
 
 def main():

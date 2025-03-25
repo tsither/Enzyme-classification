@@ -16,7 +16,7 @@ import random
 import json
 
 
-baseline_hyperparameters = { "epochs" : [10, 20, 30],
+baseline_hyperparameters = { "epochs" : [10, 30, 50],
                     "lr": [0.0001, 0.001, 0.01],
                    "hidden": [64, 128, 256],
                    "dropout": [0.3],
@@ -47,22 +47,25 @@ def main():
         optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         criterion = torch.nn.CrossEntropyLoss()     #automatically calculates log_softmax within loss function!
         
-        train_losses, val_losses, val_accuracies, train_accuracies = train_and_evaluate(model, train_dataset, validation_dataset=val_dataset, optimizer=optimizer, criterion=criterion, baseline=True, epochs=epochs)
+        train_losses, val_losses, val_accuracies, train_accuracies, stopped_epoch = train_and_evaluate(model, train_dataset, validation_dataset=val_dataset, optimizer=optimizer, criterion=criterion, baseline=True, epochs=epochs)
         final_val_acc = val_accuracies[-1]
         final_train_acc = train_accuracies[-1]
 
+        print(f"Epochs: {stopped_epoch}")
         print(f"Final Training data Accuracy: {final_train_acc}")
         print(f"Final Validation Accuracy: {final_val_acc}")
 
         results.append({                #store results of all experiments in dist, later write to JSON 
             'epochs': epochs,
+            'stopped epoch': stopped_epoch,
             'lr': lr,
             'hidden': hidden_dim,
             'weight_decay': weight_decay,
             'train loss arc': train_losses,
             'val loss arc': val_losses,
             'val accuracies' : val_accuracies,
-            'Final Val Accuracy': final_val_acc
+            'Final Val Accuracy': final_val_acc,
+            
         })
 
         if final_val_acc > best_accuracy:
@@ -70,7 +73,7 @@ def main():
             print("** New best model ** ")
 
             best_model = model
-            best_hyperparameters["epochs"] = epochs
+            best_hyperparameters["epochs"] = stopped_epoch
             best_hyperparameters["lr"] = lr
             best_hyperparameters["hidden"] = hidden_dim
             best_hyperparameters["weight_decay"] = weight_decay

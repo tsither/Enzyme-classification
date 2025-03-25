@@ -18,7 +18,7 @@ from enzyme_classification.data_processing import process_dataset, INPUT_DIM, OU
 import random
 import json
 
-GAT_hyperparameters = { "epochs" : [10, 20, 30],
+GAT_hyperparameters = { "epochs" : [10, 30, 50],
                        "layers" : [2,3,4],
                        "layer norm" : [True],
                     "lr": [0.0001, 0.001, 0.01],
@@ -57,14 +57,16 @@ def main():
         optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         criterion = torch.nn.CrossEntropyLoss()     #automatically calculates log_softmax within loss function!
 
-        train_losses, val_losses, val_accuracies = train_and_evaluate(model, train_dataset, validation_dataset=val_dataset, optimizer=optimizer, criterion=criterion, baseline=False, epochs=epochs)
+        train_losses, val_losses, val_accuracies, train_accuracies, stopped_epoch = train_and_evaluate(model, train_dataset, validation_dataset=val_dataset, optimizer=optimizer, criterion=criterion, baseline=False, epochs=epochs)
         final_acc = val_accuracies[-1]
-        max_acc = max(val_accuracies)
-        print(f"Best Accuracy: {max_acc}")
-        print(f"Final Accuracy: {final_acc}")
+        final_train_acc = train_accuracies[-1]
+
+        print(f"epoch: {stopped_epoch}")
+        print(f"Final train ccc: {final_train_acc}")
+        print(f"Final Val Accuracy: {final_acc}")
 
         results.append({
-            'epochs': epochs,
+            'epochs': stopped_epoch,
             'lr': lr,
             'layers': layers,
             'layer norm': layer_norm,
@@ -75,7 +77,7 @@ def main():
             'train loss arc': train_losses,
             'val loss arc': val_losses,
             'val accuracies' : val_accuracies,
-            'Max Accuracy' : max_acc,
+            'train accuracies': train_accuracies,
             'Final Accuracy': final_acc
         })
 
@@ -83,7 +85,7 @@ def main():
             best_accuracy = final_acc
             print("** New best model ** ")
             best_model = model
-            best_hyperparameters["epochs"] = epochs
+            best_hyperparameters["epochs"] = stopped_epoch
             best_hyperparameters["layers"] = layers
             best_hyperparameters["layer norm"] = layer_norm
             best_hyperparameters["lr"] = lr
